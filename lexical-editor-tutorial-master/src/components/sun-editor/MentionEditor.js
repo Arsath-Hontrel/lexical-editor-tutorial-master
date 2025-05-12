@@ -20,7 +20,6 @@ export default function MentionEditor() {
         { id: 4, name: 'React.js' },
     ])
 
-    const [editorInstance, setEditorInstance] = useState(null);
     const [showDropdown, setShowDropdown] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [content, setContent] = useState('');
@@ -30,10 +29,11 @@ export default function MentionEditor() {
     const lastKey = useRef(null);
     const mentionRangeRef = useRef(null);
     const contentRef = useRef("")
+    const editorRef = useRef(null)
     console.log(contentRef.current, "content")
     useEffect(() => {
-        if (editorInstance) {
-            const editableArea = editorInstance.core?.context?.element?.wysiwyg;
+        if (editorRef.current) {
+            const editableArea = editorRef?.current?.core?.context?.element?.wysiwyg;
 
             if (editableArea) {
                 const keyDownHandler = (e) => handleKeyDown(e);
@@ -42,7 +42,7 @@ export default function MentionEditor() {
                 return () => editableArea.removeEventListener('keydown', keyDownHandler);
             }
         }
-    }, [editorInstance, showDropdown, mentionQuery]);
+    }, [editorRef.current, showDropdown, mentionQuery]);
 
 
 
@@ -90,47 +90,100 @@ const handleKeyUp = (e) => {
 
 
    
-const handleChange = (updatedContent) => {
+// const handleChange = (updatedContent) => {
 
-    contentRef.current = updatedContent; 
-    setContent(updatedContent);
+//     contentRef.current = updatedContent; 
+//     setContent(updatedContent);
 
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-        setMentionQuery('');
-        setShowDropdown(false);
-        return;
-    }
+//     const selection = window.getSelection();
+//     if (!selection || selection.rangeCount === 0) {
+//         setMentionQuery('');
+//         setShowDropdown(false);
+//         return;
+//     }
 
-    const range = selection.getRangeAt(0);
-    const node = range.startContainer;
+//     const range = selection.getRangeAt(0);
+//     const node = range.startContainer;
 
-    let textUpToCursor = '';
-    if (node.nodeType === Node.TEXT_NODE) {
-        textUpToCursor = node.textContent.slice(0, range.startOffset);
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null, false);
-        while (walker.nextNode()) {
-            textUpToCursor = walker.currentNode.textContent;
-        }
-    }
+//     let textUpToCursor = '';
+//     if (node.nodeType === Node.TEXT_NODE) {
+//         textUpToCursor = node.textContent.slice(0, range.startOffset);
+//     } else if (node.nodeType === Node.ELEMENT_NODE) {
+//         const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT, null, false);
+//         while (walker.nextNode()) {
+//             textUpToCursor = walker.currentNode.textContent;
+//         }
+//     }
 
-    const atIndex = textUpToCursor.lastIndexOf('@');
-    if (atIndex !== -1) {
-        const query = textUpToCursor.slice(atIndex + 1).match(/^[\w\d]*/)?.[0] || '';
-        setMentionQuery(query.toLowerCase());
-        setShowDropdown(true);
-    } else {
-        setMentionQuery('');
-        setShowDropdown(false);
-    }
+//     const atIndex = textUpToCursor.lastIndexOf('@');
+//     if (atIndex !== -1) {
+//         const query = textUpToCursor.slice(atIndex + 1).match(/^[\w\d]*/)?.[0] || '';
+//         setMentionQuery(query.toLowerCase());
+//         setShowDropdown(true);
+//     } else {
+//         setMentionQuery('');
+//         setShowDropdown(false);
+//     }
 
   
 
 
 
-};
+// };
 
+
+const handleChange = (updatedContent) => {
+    if (editorRef.current) {
+      // Get the wysiwyg frame element
+      const wysiwygFrame = editorRef.current.core.context.element.wysiwygFrame;
+
+      // Clone the wysiwyg frame to preserve all content and styles
+      const clonedContent = wysiwygFrame.cloneNode(true);
+
+      // Convert the cloned element to a string, capturing all HTML and inline styles
+      contentRef.current = clonedContent.innerHTML;
+
+        console.log(contentRef.current, "    contentRef.current")
+    }
+
+    setContent(updatedContent);
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      setMentionQuery("");
+      setShowDropdown(false);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const node = range.startContainer;
+
+    let textUpToCursor = "";
+    if (node.nodeType === Node.TEXT_NODE) {
+      textUpToCursor = node.textContent.slice(0, range.startOffset);
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const walker = document.createTreeWalker(
+        node,
+        NodeFilter.SHOW_TEXT,
+        null,
+        false
+      );
+      while (walker.nextNode()) {
+        textUpToCursor = walker.currentNode.textContent;
+      }
+    }
+
+    const atIndex = textUpToCursor.lastIndexOf("@");
+    if (atIndex !== -1) {
+      const query =
+        textUpToCursor.slice(atIndex + 1).match(/^[\w\d]*/)?.[0] || "";
+      setMentionQuery(query.toLowerCase());
+      setShowDropdown(true);
+    } else {
+      setMentionQuery("");
+      setShowDropdown(false);
+    }
+};
     const filteredUsers = users.filter(user =>
         user.name.toLowerCase().includes(mentionQuery.toLowerCase())
     );
@@ -259,7 +312,11 @@ const handleMentionSelect = (user) => {
         <div style={{ position: 'relative' }}>
             <SunEditor
                 ref={contentRef}
-                getSunEditorInstance={setEditorInstance}
+                getSunEditorInstance={(instance) => {
+                    // Optionally force the toolbar buttons based on current state.
+                 editorRef.current = instance
+                }}
+
                 onKeyUp={handleKeyUp}
                 onChange={handleChange}
                 defaultValue={content}
